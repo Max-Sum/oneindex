@@ -14,5 +14,8 @@ RUN mv docker-entrypoint.sh /usr/local/bin
 
 EXPOSE 9000
 
+# Persistent config file
+VOLUME [ "config" ]
+
 ENTRYPOINT [ "docker-entrypoint.sh" ]
 CMD [ "php-fpm" ]
