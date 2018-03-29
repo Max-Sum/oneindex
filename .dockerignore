@@ -1,2 +1,5 @@
 README.md
 config
+.htaccess
+Web.config
+nginx.conf
