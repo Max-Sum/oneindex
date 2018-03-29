@@ -8,21 +8,19 @@ ENV ONEINDEX_CACHE_REFRESH_TIME 30
 ENV ONEINDEX_ROOT_PATH '/'
 
 WORKDIR /var/www/html
-COPY --chown=www-data:www-data . .
+ADD . .
 
 
 RUN mv docker-entrypoint.sh /usr/local/bin \
-    && mkdir /var/www/html/config \ 
-    && mkdir /var/www/html/cache \
-    && chown www-data:www-data config \
-    && chown www-data:www-data cache 
+    && mkdir config \
+    && chown www-data:www-data /var/www/html
 
 EXPOSE 9000
 
 USER www-data
 
 # Persistent config file
-VOLUME [ "/var/www/html/config", "/var/www/html/cache" ]
+VOLUME [ "/var/www/html/config" ]
 
 ENTRYPOINT [ "docker-entrypoint.sh" ]
 CMD [ "php-fpm" ]
