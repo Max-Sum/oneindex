@@ -10,9 +10,16 @@ ENV ONEINDEX_ROOT_PATH '/'
 WORKDIR /var/www/html
 COPY --chown=www-data:www-data . .
 
-RUN mv docker-entrypoint.sh /usr/local/bin
+
+RUN mv docker-entrypoint.sh /usr/local/bin \
+    && mkdir /var/www/html/config \ 
+    && mkdir /var/www/html/cache \
+    && chown www-data:www-data config \
+    && chown www-data:www-data cache 
 
 EXPOSE 9000
+
+USER www-data
 
 # Persistent config file
 VOLUME [ "/var/www/html/config", "/var/www/html/cache" ]
