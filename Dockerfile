@@ -14,14 +14,16 @@ ADD . .
 
 RUN mv docker-entrypoint.sh /usr/local/bin \
     && mkdir config \
-    && chown www-data:www-data /var/www/html
+    && mkdir cache \
+    && chown www-data:www-data /var/www/html/config \
+    && chown www-data:www-data /var/www/html/cache \
 
 EXPOSE 9000
 
 USER www-data
 
 # Persistent config file
-VOLUME [ "/var/www/html/config" ]
+VOLUME [ "/var/www/html/config", "/var/www/html/cache" ]
 
 ENTRYPOINT [ "docker-entrypoint.sh" ]
 CMD [ "php-fpm" ]
