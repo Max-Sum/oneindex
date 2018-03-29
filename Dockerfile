@@ -10,4 +10,9 @@ ENV ONEINDEX_ROOT_PATH '?'
 WORKDIR /var/www/html
 COPY --chown=www-data:www-data . .
 
+RUN mv docker-entrypoint /usr/local/bin
+
+EXPOSE 9000
+
 ENTRYPOINT [ "docker-entrypoint.sh" ]
+CMD [ "php-fpm" ]

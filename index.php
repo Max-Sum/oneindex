@@ -17,8 +17,8 @@ if( empty(onedrive::$app_url) ){
 				return view::load('auth')->with('authorize_url',$authorize_url)
 							->with('error','获取app url 失败');
 			}
-			config('refresh_token', $data['refresh_token']);
-			config('app_url', $app_url);
+			config('refresh_token@config', $data['refresh_token']);
+			config('app_url@config', $app_url);
 			view::direct('/');
 	});
 	if((route::$runed) == false){
