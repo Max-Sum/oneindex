@@ -10,7 +10,7 @@ ENV ONEINDEX_ROOT_PATH '?'
 WORKDIR /var/www/html
 COPY --chown=www-data:www-data . .
 
-RUN mv docker-entrypoint /usr/local/bin
+RUN mv docker-entrypoint.sh /usr/local/bin
 
 EXPOSE 9000
 
