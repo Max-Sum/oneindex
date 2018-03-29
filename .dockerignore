@@ -1,5 +1,6 @@
 README.md
 config
+cache
 .htaccess
 Web.config
 nginx.conf

@@ -12,7 +12,6 @@ ENV ONEINDEX_ROOT_PATH ''
 WORKDIR /var/www/html
 ADD . .
 
-
 RUN mv docker-entrypoint.sh /usr/local/bin \
     && mkdir config \
     && mkdir cache \
