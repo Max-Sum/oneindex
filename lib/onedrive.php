@@ -43,7 +43,7 @@
 			if($token['expires_on'] > time()+600){
 				return $token['access_token'];
 			}else{
-				$refresh_token = config('refresh_token');
+				$refresh_token = config('refresh_token@config');
 				$token = self::get_token($refresh_token);
 				if(!empty($token['refresh_token'])){
 					config('@token', $token);
