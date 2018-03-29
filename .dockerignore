@@ -3,3 +3,4 @@ config
 .htaccess
 Web.config
 nginx.conf
+Dockerfile
