@@ -16,7 +16,7 @@ switch ( $argv[1] ){
 			echo $path.PHP_EOL;
 		    $items = onedrive::dir($path);
 		    if(is_array($items)){
-				cache('dir_'.$path, $items);
+				$cache->set('dir_'.$path, $items);
 			}
 		    foreach((array)$items as $item){
 		        if($item['folder']){

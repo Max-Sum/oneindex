@@ -26,7 +26,99 @@ if( empty(onedrive::$app_url) ){
 	}
 }
 
+function handle_folder($path) {
+	global $cache;
+	list($expire, $items) = $cache->get('dir_'.$path);
+	// 缓存无效
+	if (TIME > $expire || !is_array($items)) {
+		// 从 API 获取
+		$api_items = onedrive::dir(config('onedrive_root').$path);
+		// 设置缓存
+		if(is_array($api_items)) {
+			$items = $api_items;
+			$cache->set('dir_'.$path, $items);
+		}
+	}
+	if (!is_array($items)) {
+		// 404
+		http_response_code(404);
+		view::load('404')->with('path',urldecode($path))->show();
+		die();
+	}
+	view::load('list')->with('path',$path)->with('items', $items)->show();
+	if(!is_array($api_items) && TIME > $expire - config('cache_expire_time') + config('cache_refresh_time')) {
+		fastcgi_finish_request();
+		$api_items = onedrive::dir(config('onedrive_root').$path);
+		if(is_array($api_items)){
+			$cache->set('dir_'.$path, $api_items);
+		}
+	}
+}
 
+function handle_file($path, $name) {
+	global $cache;
+	list($expire, $items) = $cache->get('dir_'.$path);
+	// 缓存无效
+	if (TIME > $expire || empty($items[$name])) {
+		// 从 API 获取
+		$api_items = onedrive::dir(config('onedrive_root').$path);
+		// 设置缓存
+		if(is_array($api_items)) {
+			$items = $api_items;
+			$cache->set('dir_'.$path, $items);
+		}
+	}
+	if (empty($items[$name])) {
+		// 404
+		http_response_code(404);
+		view::load('404')->with('path',urldecode($path).$name)->show();
+		die();
+	}
+	//是文件夹
+	if ($items[$name]['folder']) {
+		header('Location: '.$_SERVER['REQUEST_URI'].'/');
+		die();
+	}
+	// redirect
+	header('Location: '.$items[$name]['downloadUrl']);
+	// 刷新缓存
+	if(!is_array($api_items) && TIME > $expire - config('cache_expire_time') + config('cache_refresh_time')) {
+		fastcgi_finish_request();
+		$api_items = onedrive::dir(config('onedrive_root').$path);
+		if(is_array($api_items)){
+			$cache->set('dir_'.$path, $api_items);
+		}
+	}
+}
+
+function handle_thumbnail($path, $size) {
+	global $cache;
+	// 是否有缓存
+	list($expire, $item) = $cache->get('thumbnails_'.$path);
+	if(TIME > $expire || empty($item[$size])){
+		$api_item = onedrive::thumbnails(config('onedrive_root').$path); 
+		if(!empty($api_item)) {
+			$item = $api_item;
+			$cache->set('thumbnails_'.$path, $item);
+		}
+	}
+	if (empty($item[$size]['url'])) {
+		// 404
+		http_response_code(404);
+		view::load('404')->with('path',urldecode($path))->show();
+		die();
+	}
+	// redirect
+	header('Location: '.$item[$size]['url']);
+	// 刷新缓存
+	if(empty($api_item) && TIME > $expire - config('cache_expire_time') + config('cache_refresh_time')) {
+		fastcgi_finish_request();
+		$api_item = onedrive::thumbnails(config('onedrive_root').$path);
+		if(is_array($api_item)){
+			$cache->set('thumbnails_'.$path, $api_item);
+		}
+	}
+}
 
 route::get('{path:#all}',function(){
 	//获取路径和文件名
@@ -34,60 +126,14 @@ route::get('{path:#all}',function(){
 	if(substr($_SERVER['REQUEST_URI'], -1) != '/'){
 		$name = urldecode(array_pop($paths));
 	}
-	$url_path = get_absolute_path(implode('/', $paths));
-	$path = config('onedrive_root').$url_path;
-	
-	//是否有缓存
-	list($time, $items) = cache('dir_'.$path);
-	//缓存失效或文件不存在，重新抓取
-	if( !is_array($items) || (TIME - $time) > config('cache_expire_time') || (!empty($name) && !array_key_exists($name, $items))){
-		$items = onedrive::dir($path);
-		if(is_array($items)){
-			$time = TIME;
-			cache('dir_'.$path, $items);
-		} else {
-			http_response_code(404);
-			view::load('404')->with('path',urldecode($url_path))->show();
-			die();
-		}
-	}
-	//输出
-	if(!empty($name)){//file
-		//文件不存在
-		if (!array_key_exists($name, $items)) {
-			http_response_code(404);
-			view::load('404')->with('path',urldecode($url_path).$name)->show();
-			die();
-		}
-		//是文件夹
-		if ($items[$name]['folder']) {
-			header('Location: '.$_SERVER['REQUEST_URI'].'/');
-		}
-		if(in_array($_GET['thumbnails'],['large','medium','small'])){
-			list($time, $item) = cache('thumbnails_'.$path.$name);
-			if(empty($item[$_GET['thumbnails']]) ||  (TIME - $time) > config('cache_expire_time') ){
-				$item = onedrive::thumbnails($path.$name); 
-				if(!empty($item)){
-					cache('thumbnails_'.$path.$name, $item);
-				}
-			}
-			$url = $item[$_GET['thumbnails']]['url'];
-		}else{
-			$url = $items[$name]['downloadUrl'];
-		}
-		header('Location: '.$url);
-	}else{//dir
-		
-		view::load('list')->with('path',$url_path)->with('items', $items)->show();
-	}
-	
-	//后台刷新缓存
-	if((TIME - $time) > config('cache_refresh_time')){
-		fastcgi_finish_request();
-		$items = onedrive::dir($path);
-		if(is_array($items)){
-			cache('dir_'.$path, $items);
-		}
+	$path = get_absolute_path(implode('/', $paths));
+
+	if (empty($name)) {
+		handle_folder($path);
+	} elseif(in_array($_GET['thumbnails'], ['large','medium','small'])) {
+		handle_thumbnail($path.$name, $_GET['thumbnails']);
+	} else {
+		handle_file($path, $name);
 	}
 });
 

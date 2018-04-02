@@ -1,6 +1,6 @@
 <?php
 
-class sqlite implements \Countable
+class sqlite implements Countable
 {
     /**
      * @var PDO
@@ -11,12 +11,18 @@ class sqlite implements \Countable
      * @var string
      */
     private $name = null;
+    
+    /**
+     * @var int
+     */
+    private $default_expire = 3600;
 
-    public function __construct($name, $filename = "data.sqlite3")
+    public function __construct($name, $filename = "data.sqlite3", $expire = 3600)
     {
         $this->db = new PDO('sqlite:' . $filename);
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->name = $name;
+        $this->default_expire = $expire;
         $this->createTable();
     }
 
@@ -24,7 +30,7 @@ class sqlite implements \Countable
      * @param string $key key
      *
      * @throws InvalidArgumentException
-     * @return string|null
+     * @return array(int, array|string)|null
      */
     public function get($key)
     {
@@ -33,35 +39,42 @@ class sqlite implements \Countable
         }
 
         $stmt = $this->db->prepare(
-            'SELECT value FROM ' . $this->name . ' WHERE key = :key;'
+            'SELECT value, expire FROM ' . $this->name . ' WHERE key = :key;'
         );
         $stmt->bindParam(':key', $key, PDO::PARAM_STR);
         $stmt->execute();
 
         if ($row = $stmt->fetch(PDO::FETCH_OBJ)) {
-            return $row->value;
+            return array($row->expire, unserialize($row->value));
         }
 
-        return null;
+        return array(0, null);
     }
 
     /**
      * @param string $key key
-     * @param string $value value
+     * @param array|string $value value
+     * @param int expire time in unix timestamp
      *
      * @throws InvalidArgumentException
      */
-    public function set($key, $value)
+    public function set($key, $value, $expire_time = -1)
     {
         if (!is_string($key)) {
             throw new InvalidArgumentException('Expected string as key');
         }
+        if (!is_int($expire_time) || $expire_time <= 0) {
+            $expire_time = time() + $this->default_expire;
+        }
 
-        $queryString = 'REPLACE INTO ' . $this->name . ' VALUES (:key, :value);';
+        $queryString = 'REPLACE INTO ' . $this->name . ' VALUES (:key, :value, :expire);';
         $stmt = $this->db->prepare($queryString);
         $stmt->bindParam(':key', $key, \PDO::PARAM_STR);
-        $stmt->bindParam(':value', $value, \PDO::PARAM_STR);
+        $stmt->bindParam(':value', serialize($value), \PDO::PARAM_STR);
+        $stmt->bindParam(':expire', $expire_time, \PDO::PARAM_INT);
         $stmt->execute();
+
+        return array(time(), $value);
     }
 
     /**
@@ -87,7 +100,19 @@ class sqlite implements \Countable
     {
         $stmt = $this->db->prepare('DELETE FROM ' . $this->name);
         $stmt->execute();
-        $this->data = array();
+    }
+
+    /**
+     * Clean up expired items
+     *
+     * @return null
+     */
+    public function clear()
+    {
+        $stmt = $this->db->prepare(
+            'DELETE FROM ' . $this->name . ' WHERE expire < strftime(\'%s\',\'now\')'
+        );
+        $stmt->execute();
     }
 
     /**
@@ -105,8 +130,8 @@ class sqlite implements \Countable
      */
     private function createTable()
     {
-        $stmt = 'CREATE TABLE IF NOT EXISTS "' . $this->name . '"';
-        $stmt.= '(key TEXT PRIMARY KEY, value TEXT);';
+        $stmt = 'CREATE TABLE IF NOT EXISTS `' . $this->name . '`';
+        $stmt.= '(key TEXT PRIMARY KEY, value TEXT, expire INTEGER NOT NULL);';
         $this->db->exec($stmt);
     }
 }

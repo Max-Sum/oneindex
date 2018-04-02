@@ -64,45 +64,13 @@ function config($key) {
 	}
 }
 
-/**
- * config('name');
- * config('name@file');
- * config('@file');
- */
+// 初始化缓存
 !defined('CACHE_PATH') && define('CACHE_PATH', ROOT . 'cache/');
-
-if(config('cache_type') == 'sqlite'){
-	function cache($key, $value = null) {
-		$store = new sqlite('cache',CACHE_PATH.'data.sqlite3');
-		if (is_null($value)) {
-			$cache = $store->get($key);
-			return (array)json_decode($cache, true);
-		} else {
-			$data = array(TIME, $value);
-			$store->set($key, json_encode($data));
-			return $data;
-		}
-	}
-}else{
-	function cache($key, $value = null) {
-		$file = CACHE_PATH . md5($key) . '.php';
-		if (is_null($value)) {
-			$cache = @include $file;
-			return (array)$cache;
-		} else {
-			file_put_contents($file, "<?php return " . var_export(array(TIME, $value), true) . ";", LOCK_EX);
-			return array(TIME, $value);
-		}
-	}
-}
-
-
-
-
-if (!function_exists('db')) {
-	function db($table) {
-		return db::table($table);
-	}
+global $cache;
+if(config('cache_type') == 'sqlite') {
+	$cache = new sqlite('cache', CACHE_PATH.'data.sqlite3', config('cache_expire_time'));
+} else {
+	$cache = new filecache(CACHE_PATH, config('cache_expire_time'));
 }
 
 !defined('VIEW_PATH') && define('VIEW_PATH', ROOT . 'view/');
