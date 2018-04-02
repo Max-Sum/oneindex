@@ -78,12 +78,13 @@ class filecache
      */
     public function deleteAll()
     {
-        while ($file=readdir($this->root)) {
+        $dir = opendir($this->root);
+        while ($file = readdir($dir)) {
             if (pathinfo($file, PATHINFO_EXTENSION) != 'php') {
                 continue;
             }
 			@unlink($this->root.$file);
-		}
+        }
     }
 
     /**
@@ -93,8 +94,8 @@ class filecache
      */
     public function clear()
     {
-        if ($expire_time <= 0) return $this->deleteAll();
-        while ($file=readdir($this->root)) {
+        $dir = opendir($this->root);
+        while ($file = readdir($dir)) {
             if (pathinfo($file, PATHINFO_EXTENSION) != 'php') {
                 continue;
             }
@@ -102,6 +103,6 @@ class filecache
             if (time() > $time) {
                 @unlink($this->root.$file);
             }
-		}
+        }
     }
 }

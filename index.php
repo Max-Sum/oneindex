@@ -135,5 +135,16 @@ route::get('{path:#all}',function(){
 	} else {
 		handle_file($path, $name);
 	}
+
+	// 伪 cron 清理缓存
+	if (empty(config('flush_cache_at@cache'))) {
+		config('flush_cache_at@cache', TIME + config('cache_expire_time'));
+	}
+	if (TIME > config('flush_cache_at@cache')) {
+		fastcgi_finish_request();
+		global $cache;
+		$cache->clear();
+		config('flush_cache_at@cache', TIME + config('cache_expire_time'));
+	}
 });
 
